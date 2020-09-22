@@ -26,3 +26,6 @@ pub use crate::stun_attribute_types::*;
 
 mod parser;
 pub use crate::parser::*;
+
+mod serializer;
+pub use crate::serializer::*;

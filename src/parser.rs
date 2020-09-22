@@ -1,8 +1,8 @@
+use crate::stun_attribute::*;
 use crate::stun_constants::*;
 use crate::stun_errors::StunParseError;
-use crate::stun_message_types::*;
-use crate::stun_attribute::*;
 use crate::stun_message::*;
+use crate::stun_message_types::*;
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -15,16 +15,28 @@ use nom::sequence::tuple;
 use nom::Err::Error;
 use nom::IResult;
 
-/// Parse a STUN message
+/// Parse a STUN message from the given input buffer.
+///
+/// # Arguments
+///
+/// @param input an array containing a serialized STUN message
+///
+/// # Return
+///
+/// A nom::IResult object.  On success a tuple containing the unparsed portion of the input
+/// buffer and a StunMessage object.  On error, an error object describing the error.
+/// @see https://docs.rs/nom/0.3.5/nom/enum.IResult.html
 pub fn parse_stun_message(input: &[u8]) -> IResult<&[u8], StunMessage, StunParseError<&[u8]>> {
-    let (input, ((message_class, message_method), message_length, magic_cookie, transaction_id, attributes)) =
-        tuple((
-            parse_message_type,
-            parse_message_length,
-            parse_magic_cookie,
-            parse_transaction_id,
-            parse_attributes
-        ))(input)?;
+    let (
+        input,
+        ((message_class, message_method), message_length, magic_cookie, transaction_id, attributes),
+    ) = tuple((
+        parse_message_type,
+        parse_message_length,
+        parse_magic_cookie,
+        parse_transaction_id,
+        parse_attributes,
+    ))(input)?;
 
     Ok((
         input,
@@ -72,7 +84,7 @@ fn parse_message_class(
     let class_bits = ((message_type & STUN_MESSAGE_CLASS_MASK_BIT_0)
         >> STUN_MESSAGE_CLASS_SHIFT_BIT_0)
         | ((message_type & STUN_MESSAGE_CLASS_MASK_BIT_1) >> STUN_MESSAGE_CLASS_SHIFT_BIT_1);
-    
+
     match StunMessageClass::try_from(class_bits) {
         Ok(class) => Ok((input, class)),
         Err(_) => Err(Error(StunParseError::InvalidMessageClassError(
@@ -150,11 +162,18 @@ fn parse_attribute(input: &[u8]) -> IResult<&[u8], StunAttribute, StunParseError
         1 => 3,
         2 => 2,
         3 => 1,
-        _ => 0
+        _ => 0,
     };
     let (input, _) = take(padding_length)(input)?;
 
-    Ok((input, StunAttribute{attribute_type, attribute_length, attribute_value}))
+    Ok((
+        input,
+        StunAttribute {
+            attribute_type,
+            attribute_length,
+            attribute_value,
+        },
+    ))
 }
 
 #[cfg(test)]
@@ -341,7 +360,7 @@ mod tests {
         let result = parse_attribute(&input);
 
         assert!(result.is_ok());
-        
+
         let data = result.unwrap();
         assert_eq!(data.1.attribute_type, 0x0001);
         assert_eq!(data.1.attribute_length, 0x0000);
@@ -354,7 +373,7 @@ mod tests {
         let result = parse_attribute(&input);
 
         assert!(result.is_ok());
-        
+
         let data = result.unwrap();
         assert_eq!(data.1.attribute_type, 0x0001);
         assert_eq!(data.1.attribute_length, 0x0004);
@@ -367,7 +386,7 @@ mod tests {
         let result = parse_attribute(&input);
 
         assert!(result.is_ok());
-        
+
         let data = result.unwrap();
         assert_eq!(data.0.len(), 0);
         assert_eq!(data.1.attribute_type, 0x0001);
